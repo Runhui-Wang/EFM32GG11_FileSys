@@ -168,8 +168,8 @@ FRESULT scan_files (
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
                 i = strlen(path);
+                printf("%-30s|/%-30s| ", path, fno.fname);
                 sprintf(&path[i], "/%s ", fno.fname);
-                printf("/%-61s| ", fno.fname);
                 unsigned int year = ((fno.fdate >> 9) & 0x7F) + 1980;
                 unsigned int month = (fno.fdate >> 5) & 0x0F;
                 unsigned int day = fno.fdate & 0x1F;

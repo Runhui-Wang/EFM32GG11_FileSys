@@ -85,7 +85,7 @@ static const sl_cli_command_info_t cmd__ls = \
   SL_CLI_COMMAND(ls_cmd,
                  "Print everything under current directory",
                  "Optional: flag"SL_CLI_UNIT_SEPARATOR "Optional: file path",
-                 {  SL_CLI_ARG_STRING,SL_CLI_ARG_STRINGOPT,SL_CLI_ARG_END, });
+                 {  SL_CLI_ARG_WILDCARD,SL_CLI_ARG_END, });
 
 static const sl_cli_command_info_t cmd__mkdir = \
   SL_CLI_COMMAND(mk_dir,
@@ -311,28 +311,43 @@ void led_cmd(sl_cli_command_arg_t *arguments)
          printf("BASE");
 }
 void ls_cmd(sl_cli_command_arg_t *arguments){
-  char* close;
-  char* patha;
+  char* close = sl_cli_get_argument_string(arguments,0);
+  char* patha = "";
   if(2==sl_cli_get_argument_count(arguments)){
+      close = sl_cli_get_argument_string(arguments,0);
       patha = sl_cli_get_argument_string(arguments,1);
+      if(0==strcmp(close,"-h")){
+          fs_ls_cmd_f(2,patha);
+      }else if(0==strcmp(close,"-l")){
+          fs_ls_cmd_f(1,patha);
+      }else if(0==strcmp(close,"-1")){
+          fs_ls_cmd_f(0,patha);
+      }else if( *close == '-'){
+          printf("unrecognized command!!!\n");
+      }
+  }else if(1==sl_cli_get_argument_count(arguments)&&*close == '-'){
+      close = sl_cli_get_argument_string(arguments,0);
+      if(0==strcmp(close,"-h")){
+          fs_ls_cmd_f(2,patha);
+      }else if(0==strcmp(close,"-l")){
+          fs_ls_cmd_f(1,patha);
+      }else if(0==strcmp(close,"-1")){
+          fs_ls_cmd_f(0,patha);
+      }else if( *close == '-'){
+          printf("unrecognized command!!!\n");
+      }
 
-  }else{
-      patha= "";
-  }
+  }else if (1==sl_cli_get_argument_count(arguments)&&*close != '-'){
 
-  close = sl_cli_get_argument_string(arguments,0);
-
-  if(0==strcmp(close,"-h")){
-      fs_ls_cmd_f(2,patha);
-  }else if(0==strcmp(close,"-l")){
-      fs_ls_cmd_f(1,patha);
-  }else if(0==strcmp(close,"-1")){
+      patha = sl_cli_get_argument_string(arguments,0);
       fs_ls_cmd_f(0,patha);
-  }else if( *close == '-'){
-      printf("unrecognized command!!!\n");
+
+  }else if (0 == sl_cli_get_argument_count(arguments)){
+      fs_ls_cmd_f(0,patha);
   }else{
-      fs_ls_cmd_f(0,close);
+      printf("Unrecognized Parameters!\n");
   }
+
   printf("SD");
 
 }
