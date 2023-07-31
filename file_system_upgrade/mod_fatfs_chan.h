@@ -31,6 +31,7 @@ static char commandLine[CBUFSIZE];
 static int commandIndex = 0;
 extern volatile uint32_t msTicks; // counts 1ms timeTicks
 
+
 void BSP_SLSTK3701A_SDIO_HWInit(void);
 void Delay(uint32_t dlyTicks);
 
@@ -41,13 +42,16 @@ int fs_write_tst_f(char* fn, char* str);
 int fs_mount_f();
 int fs_unmount_f();
 //FRESULT scan_files_1 (char* path);
-FRESULT scan_files(char* path,bool loption);
-int fs_ls_cmd_f();
+FRESULT scan_files(char* path,bool loption, uint32_t tag);
+
+int fs_ls_cmd_f(uint32_t tag,TCHAR* PATH_T);
+
 int fs_cat_f(char* fn);
 FRESULT fs_rm_cmd_f(char* fn);
 FRESULT fs_mkdir_cmd_f (char* dirname);
 FRESULT fs_mv_cmd_f (char* old_fn, char* new_fn);
-
+FRESULT fs_cd_cmd_f(char* path_c);
+FRESULT fs_pwd_cmd_f();
 extern char* w_dir;
 
 #endif /* MOD_FATFS_CHAN_H_ */

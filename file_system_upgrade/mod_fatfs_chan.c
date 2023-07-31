@@ -37,7 +37,8 @@ FATFS Fatfs;
 FIL fh;
 TCHAR path[100];
 volatile uint32_t msTicks;
-
+#define SZ_STR 100
+extern char Curr_Addr[100] = "/";
 /* Command buffer and read data buffer */
 /*
 #define CBUFSIZE    80
@@ -50,6 +51,9 @@ volatile uint32_t msTicks; // counts 1ms timeTicks
 void BSP_SLSTK3701A_SDIO_HWInit(void);
 void Delay(uint32_t dlyTicks);
 */
+#define KILOBYTE 1024
+#define MEGABYTE 1024*1024
+#define GIGABYTE 1024*1024*1024
 
 /***************************************************************************//**
  * @brief SysTick_Handler
@@ -119,7 +123,21 @@ void BSP_SLSTK3701A_SDIO_HWInit(void)
   GPIO_PinModeSet(gpioPortA, 3, gpioModePushPullAlternate, 1);  // SDIO_DAT3
   GPIO_PinModeSet(gpioPortB, 9, gpioModePushPullAlternate, 0);  // WP
 }
+/***************************************************************************//**
+* @brief Convert File size
+* @param path to traverse
+******************************************************************************/
 
+void convert_size(long long size) {
+    if (size < KILOBYTE)
+        printf("%d b\n", (uint32_t)size);
+    else if (size < MEGABYTE)
+        printf("%.2f Kb\n", size / (double)KILOBYTE);
+    else if (size < GIGABYTE)
+        printf("%.2f Mb\n", size / (double)MEGABYTE);
+    else
+        printf("%.2f Gb\n", size / (double)GIGABYTE);
+}
 /***************************************************************************//**
  * @brief scan_files from FatFS documentation
  * @param path to traverse
@@ -127,7 +145,8 @@ void BSP_SLSTK3701A_SDIO_HWInit(void)
 //MAG from CHAN org example added line to print directory
 FRESULT scan_files (
     TCHAR* path,
-    bool loption/* Start node to be scanned (***also used as work area***) */
+    bool loption,/* Start node to be scanned (***also used as work area***) */
+    uint32_t tag
 )
 {
     FRESULT res;
@@ -139,7 +158,13 @@ FRESULT scan_files (
     res = f_opendir(&dir, path);                       /* Open the directory */
     if (res == FR_OK) {
         for (;;) {
-            res = f_readdir(&dir, &fno);                   /* Read a directory item */
+            res = f_readdir(&dir, &fno);                 /* Read a directory item */
+            if(tag==0){
+                if (res != FR_OK || fno.fname[0] == 0) break;
+                printf("%-30s\n" ,fno.fname);
+                continue;
+            }
+
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
                 i = strlen(path);
@@ -154,7 +179,13 @@ FRESULT scan_files (
                 unsigned int minute = (fno.ftime >> 5) & 0x3F;
                 unsigned int second = (fno.ftime & 0x1F) * 2;  // multiply by 2 because seconds are stored divided by 2.
                 printf("%02u:%02u:%02u\n", hour, minute, second);
-                res = scan_files(path,0);                    /* Enter the directory */
+                /**char temp [100] = {0};
+
+                if(strcmp(Curr_Addr,"/")){
+                    strcat(temp, Curr_Addr);
+                    strcat(temp, path+1);
+                }**/
+                res = scan_files(path,0,tag);                    /* Enter the directory */
                 if (res != FR_OK) break;
                 path[i] = 0;
             } else {                                       /* It is a file. */
@@ -169,10 +200,16 @@ FRESULT scan_files (
                 unsigned int minute = (fno.ftime >> 5) & 0x3F;
                 unsigned int second = (fno.ftime & 0x1F) * 2;  // multiply by 2 because seconds are stored divided by 2.
                 printf("%02u:%02u:%02u  ", hour, minute, second);
-                printf("%lu\n",(uint32_t)fno.fsize);
+                if(tag== 1){
+                    printf("%lu\n",(uint32_t)fno.fsize);
+                }else if (tag ==2){
+                    convert_size(fno.fsize);
+                }
             }
         }
         f_closedir(&dir);
+    }else{
+        printf("File/Directory Does not Exist!!! Res = %d\n" ,res);
     }
 
     return res;
@@ -194,7 +231,7 @@ int fs_mount_f()
 int fs_unmount_f()
 {
   int retval = 0;
-  retval = f_mount(&Fatfs,"", 0);
+  retval = f_unmount("");
 
   return retval;
 
@@ -241,7 +278,7 @@ int fs_bsp_init()
 
     /* Initialize filesystem */
     //  res = f_mount(0, &Fatfs,1);
-    retval = f_mount(&Fatfs,"", 0);
+    retval = f_mount(&Fatfs,"", 1);
     if (retval != FR_OK)
     {
       printf("FAT-mount failed: %d\n",retval );
@@ -258,7 +295,7 @@ int fs_bsp_init()
     return retval;
 }
 
-int fs_ls_cmd_f()
+int fs_ls_cmd_f(uint32_t tag, TCHAR* PATH_T)
 {
   int retval = 0;
 
@@ -270,8 +307,8 @@ int fs_ls_cmd_f()
         {
             loption = true;
         }
-        strcpy(path, "");
-      scan_files(path, loption);
+        strcpy(path, PATH_T);
+      scan_files(path, loption, tag);
 //        scan_files_1(path);
 
   return retval;
@@ -370,4 +407,46 @@ FRESULT fs_mv_cmd_f (char* old_fn, char* new_fn)
     printf("mv %s %s failed, error %u\n", old, new, retval);
   }
   return retval;
+}
+
+FRESULT fs_cd_cmd_f(char* path_c){
+  FRESULT retval;
+  retval = f_chdir(path_c);
+
+  TCHAR curr_d [SZ_STR];
+
+  if (retval != FR_OK)
+    {
+      printf("cd %s  failed!! Error %u\n", path_c, retval);
+
+    }
+
+  else {
+      if(strcmp(path_c,"/")==0){
+          strcpy(Curr_Addr,"");
+      }else if(strcmp(path_c,"/..")==0){
+          int index_slash =0;
+          for(int i =strlen(Curr_Addr);i>=0;i--){
+              if(index_slash==0&&Curr_Addr[i]=='/'){
+                  index_slash++;
+                  continue;
+              }
+              if(Curr_Addr[i]=='/'){
+                  Curr_Addr[i] = '\0';
+                  if(Curr_Addr[0] == '\0'){
+                      Curr_Addr[0] = '/';
+                      Curr_Addr[1] = '\0';
+                  }
+                  break;
+              }
+          }
+      }else{
+          strcat(Curr_Addr,path_c);
+          strcat(Curr_Addr,"/");
+      }
+      return retval;
+  }
+}
+FRESULT fs_pwd_cmd_f(){
+  printf("%s\n",Curr_Addr);
 }

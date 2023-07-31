@@ -37,7 +37,10 @@ DSTATUS disk_initialize (
 {
 
   if (drv) return STA_NOINIT;                   /* Supports only single drive */
-  if (stat & STA_NODISK) return stat;           /* No card in the socket */
+  if (stat & STA_NODISK) {
+      printf("No SD card in socket!!!!!\n");
+      return stat;           /* No card in the socket */
+  }
 
   if (stat&STA_NOINIT)
   {

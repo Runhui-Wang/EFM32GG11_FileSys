@@ -252,7 +252,7 @@
 
 // <q OS_CFG_TMR_EN> Enable software timers
 // <i> Default: 0
-#define  OS_CFG_TMR_EN                                      0
+#define  OS_CFG_TMR_EN                                      1
 
 // </h>
 
