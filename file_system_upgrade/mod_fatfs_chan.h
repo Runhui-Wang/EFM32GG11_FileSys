@@ -51,7 +51,7 @@ FRESULT fs_rm_cmd_f(char* fn);
 FRESULT fs_mkdir_cmd_f (char* dirname);
 FRESULT fs_mv_cmd_f (char* old_fn, char* new_fn);
 FRESULT fs_cd_cmd_f(char* path_c);
-FRESULT fs_pwd_cmd_f();
+void fs_pwd_cmd_f();
 extern char* w_dir;
-
+FRESULT fs_cp_cmd_f(char* f_name,char* n_name);
 #endif /* MOD_FATFS_CHAN_H_ */

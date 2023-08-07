@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ASCII"?>
 <model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
-  <descriptors name="file_system_upgrade">
+  <descriptors name="File_System_Ver">
     <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.super:4.3.0._-41852776"/>
     <properties key="universalConfig.generationDirectory" value=""/>
     <properties key="universalConfig.toolchainCompatibility" value="iar gcc"/>

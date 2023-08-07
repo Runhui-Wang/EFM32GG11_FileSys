@@ -17,6 +17,7 @@
 #include "diskio.h"
 #include "sdio.h"
 #include "em_cmu.h"
+#include "sl_sleeptimer.h"
 
 static DSTATUS stat = STA_NOINIT;  /* Disk status */
 static UINT CardType;
@@ -46,7 +47,8 @@ DSTATUS disk_initialize (
   {
     // Initialization of SDIO and Card
     SDIO_Init(SDIO,
-              400000,             // 400kHz
+              /**50000000**/
+              1000000000,             // 100Mhz
               cmuClock_HFPER);
 	uint8_t a_u8 = SDIO_GetActCardStateType();
 	switch(a_u8){
@@ -108,17 +110,23 @@ DRESULT disk_write (
   const BYTE *buff,   /* Pointer to the data to be written */
   DWORD sector,       /* Start sector number (LBA) */
   BYTE count          /* Sector count (1..255) */
+
 )
+
 {
+
   if (drv || !count) return RES_PARERR;
   if (stat & STA_NOINIT) return RES_NOTRDY;
   if (stat & STA_PROTECT) return RES_WRPRT;
 
   while(count != 0)
   {
+
 	  SDIO_WriteSingleBlock(SDIO,sector,buff);
 	  sector++;
 	  count--;
+
+
   }
   return count ? RES_ERROR : RES_OK;
 }

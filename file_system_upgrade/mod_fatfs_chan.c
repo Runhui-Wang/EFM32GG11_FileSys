@@ -31,8 +31,9 @@
 */
 //#define AM_LFN    0x0F  /* LFN entry */
 #include <mod_fatfs_chan.h>
-
-/* File system */
+#include "sl_iostream.h"
+#include "sl_iostream_init_instances.h"
+#include "sl_iostream_handles.h"/* File system */
 FATFS Fatfs;
 FIL fh;
 TCHAR path[100];
@@ -52,8 +53,8 @@ void BSP_SLSTK3701A_SDIO_HWInit(void);
 void Delay(uint32_t dlyTicks);
 */
 #define KILOBYTE 1024
-#define MEGABYTE 1024*1024
-#define GIGABYTE 1024*1024*1024
+#define MEGABYTE 1048576
+#define GIGABYTE 1073741824
 
 /***************************************************************************//**
  * @brief SysTick_Handler
@@ -133,15 +134,30 @@ void convert_size(long long size) {
         printf("%d b\n", (uint32_t)size);
     else if (size < MEGABYTE)
         printf("%.2f Kb\n", size / (double)KILOBYTE);
-    else if (size < GIGABYTE)
-        printf("%.2f Mb\n", size / (double)MEGABYTE);
-    else
+    else if (size < GIGABYTE){
+        volatile double temp = size / (double)MEGABYTE;
+        printf("%.2f Mb\n", temp );
+    }
+
+    else{
         printf("%.2f Gb\n", size / (double)GIGABYTE);
+    }
 }
 /***************************************************************************//**
  * @brief scan_files from FatFS documentation
  * @param path to traverse
  ******************************************************************************/
+FRESULT get_file_size(char* path, DWORD* size) {
+    FRESULT fr;               /* FatFs function common result code */
+    FILINFO fno;              /* File information object */
+
+    fr = f_stat(path, &fno);
+    if (fr) return fr;
+
+    *size = fno.fsize;
+
+    return FR_OK;
+}
 //MAG from CHAN org example added line to print directory
 FRESULT scan_files (
     TCHAR* path,
@@ -423,8 +439,8 @@ FRESULT fs_cd_cmd_f(char* path_c){
 
   else {
       if(strcmp(path_c,"/")==0){
-          strcpy(Curr_Addr,"");
-      }else if(strcmp(path_c,"/..")==0){
+          strcpy(Curr_Addr,"/");
+      }else if(strcmp(path_c,"..")==0){
           int index_slash =0;
           for(int i =strlen(Curr_Addr);i>=0;i--){
               if(index_slash==0&&Curr_Addr[i]=='/'){
@@ -432,7 +448,7 @@ FRESULT fs_cd_cmd_f(char* path_c){
                   continue;
               }
               if(Curr_Addr[i]=='/'){
-                  Curr_Addr[i] = '\0';
+                  Curr_Addr[i+1] = '\0';
                   if(Curr_Addr[0] == '\0'){
                       Curr_Addr[0] = '/';
                       Curr_Addr[1] = '\0';
@@ -440,13 +456,116 @@ FRESULT fs_cd_cmd_f(char* path_c){
                   break;
               }
           }
+          retval = f_chdir(Curr_Addr);
       }else{
-          strcat(Curr_Addr,path_c);
-          strcat(Curr_Addr,"/");
+          if(strcmp(path_c,".")==0){
+              printf(". is not recognized!!!\n");
+          }else{
+              strcat(Curr_Addr,path_c);
+              strcat(Curr_Addr,"/");
+          }
+
       }
       return retval;
   }
 }
-FRESULT fs_pwd_cmd_f(){
+void fs_pwd_cmd_f(){
   printf("%s\n",Curr_Addr);
+  return;
+}
+FRESULT copy_file (char* src, char* dst) {
+    FIL srcFile, dstFile;     /* File objects */
+    FRESULT fr;               /* FatFs function common result code */
+    UINT br, bw;              /* File read/write count */
+    BYTE buffer[512];        /* File copy buffer */
+    uint64_t temptime, ms_n; //testing
+
+    /* Open source file on the drive 1 */
+    fr = f_open(&srcFile, src, FA_READ);
+    if (fr) return fr;
+
+    /* Create destination file on the drive 0 */
+    fr = f_open(&dstFile, dst, FA_CREATE_ALWAYS | FA_WRITE);
+    if (fr) return fr;
+
+    /* Copy source to destination file */
+
+    for (;;) {
+        temptime = sl_sleeptimer_get_tick_count64();
+
+        fr = f_read(&srcFile, buffer, 512, &br);  /* Read a chunk of source file */
+        if (fr || br == 0) break; /* error or eof */
+
+
+
+        fr = f_write(&dstFile, buffer, br, &bw);            /* Write it to the destination file */
+        if (fr || bw < br) break; /* error or disk full */
+
+        uint64_t mkdirtime = sl_sleeptimer_get_tick_count64()-temptime;
+        sl_sleeptimer_tick64_to_ms(mkdirtime, &ms_n);
+    }
+    /* Close open files */
+
+
+    f_close(&srcFile);
+    f_close(&dstFile);
+
+
+
+    return fr;
+}
+
+
+FRESULT copy_directory(char* src, char* dst) {
+    FRESULT fr;               /* FatFs function common result code */
+    DIR dir;                  /* Directory object */
+    FILINFO fno;              /* File information object */
+    char srcPath[256], dstPath[256];
+
+    /* Open the source directory */
+    fr = f_opendir(&dir, src);
+    if (fr) return fr;
+
+    /* Create the destination directory */
+    fr = f_mkdir(dst);
+    if (fr) return fr;
+
+    /* Read all files and subdirectories */
+    for (;;) {
+        fr = f_readdir(&dir, &fno);                   /* Read a directory item */
+        if (fr || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+
+        /* Create source and destination paths */
+        sprintf(srcPath, "%s/%s", src, fno.fname);
+        sprintf(dstPath, "%s/%s", dst, fno.fname);
+
+        if (fno.fattrib & AM_DIR) {                    /* It is a directory */
+            /* Recursive copy */
+            fr = copy_directory(srcPath, dstPath);
+            if (fr) break;
+        } else {                                       /* It is a file */
+            /* Copy file */
+            fr = copy_file(srcPath, dstPath);
+            if (fr) break;
+        }
+    }
+
+    f_closedir(&dir);
+
+    return fr;
+}
+int is_directory(const char *path) {
+    FILINFO fno;
+    if (f_stat(path, &fno) != FR_OK)
+        return 0;
+    return (fno.fattrib & AM_DIR);
+}
+FRESULT fs_cp_cmd_f(char* f_name,char* n_name){
+
+  if(is_directory(f_name)){
+      copy_directory(f_name,n_name);
+  }else{
+      copy_file(f_name,n_name);
+
+  }
 }

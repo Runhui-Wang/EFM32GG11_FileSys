@@ -190,6 +190,11 @@ void SDIO_WriteSingleBlock( SDIO_TypeDef *sdio_t,
                             uint32_t* origin_pu32)
 {
 
+  volatile uint64_t temptime =0, ms_n =0; //testing
+  volatile uint64_t mkdirtime =0;
+
+  temptime = sl_sleeptimer_get_tick_count64();
+
   SDIO_S_TimeoutSettingonDATLine(sdio_t);
 
   uint32_t* localbuffptr_pu32;
@@ -254,7 +259,8 @@ void SDIO_WriteSingleBlock( SDIO_TypeDef *sdio_t,
   {
     sdio_t->IFCR = (_SDIO_IFCR_TRANCOM_MASK);
   }
-
+  mkdirtime= sl_sleeptimer_get_tick_count64()-temptime;
+  sl_sleeptimer_tick64_to_ms(mkdirtime, &ms_n);
 }
 
 /**************************************************************************//**

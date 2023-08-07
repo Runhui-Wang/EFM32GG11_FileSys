@@ -1,6 +1,6 @@
 # Silicon Labs Project Configuration Tools: slcp, v0, Component selection file.
-project_name: file_system_upgrade
-label: file_system_upgrade
+project_name: File_System_Ver
+label: File_System_Ver
 description: |
   This example project demonstrates how to use the CLI driver using a Micrium OS Kernel.
 category: Example|Platform
@@ -28,11 +28,15 @@ include:
 sdk: {id: gecko_sdk, version: 4.3.0}
 toolchain_settings: []
 component:
+- {id: emlib_adc}
 - {id: iostream_retarget_stdio}
 - {id: micriumos_kernel}
 - {id: sl_system}
 - instance: [inst]
   id: cli
+- instance: [exp]
+  id: iostream_usart
+- {id: device_init_lfrco}
 - {id: EFM32GG11B820F2048GL192}
 - {id: brd2204a}
 - {id: iostream_recommended_stream}
@@ -42,6 +46,7 @@ component:
 - {id: iostream_stdlib_config}
 - {id: bootloader_interface}
 - {id: sleeptimer}
+- {id: app_timer}
 define:
 - {name: DEBUG_EFM}
 configuration:
